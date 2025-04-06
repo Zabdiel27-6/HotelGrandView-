@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hotel GrandView</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --color-accent: #d4af37;
+      --fondo-claro: #f9f9f9;
+      --fondo-oscuro: #1e1e1e;
+      --texto-claro: #fff;
+      --texto-oscuro: #000;
+    }
+
+    body[data-tema="claro"] {
+      background: var(--fondo-claro);
+      color: var(--texto-oscuro);
+    }
+
+    body[data-tema="oscuro"] {
+      background: var(--fondo-oscuro);
+      color: var(--texto-claro);
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      transition: background 0.3s, color 0.3s;
+      display: flex;
+    }
+
+    .sidebar {
+      width: 240px;
+      background-color: var(--color-accent);
+      color: white;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 1rem;
+      position: fixed;
+      left: 0;
+      top: 0;
+    }
+
+    .sidebar h2 {
+      margin: 0.5rem 0;
+      font-size: 1.2rem;
+    }
+
+    .sidebar img {
+      width: 50px;
+      height: 50px;
+    }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      color: white;
+      margin: 1rem 0;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .contenedor {
+      margin-left: 240px;
+      padding: 2rem;
+      width: 100%;
+    }
+
+    .seccion {
+      display: none;
+    }
+
+    .visible {
+      display: block;
+    }
+
+    button {
+      background-color: var(--color-accent);
+      border: none;
+      color: white;
+      padding: 0.5rem 1rem;
+      margin: 0.3rem;
+      cursor: pointer;
+      border-radius: 5px;
+      transition: transform 0.2s;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+    }
+
+    .habitacion {
+      display: inline-block;
+      margin: 0.3rem;
+    }
+
+    .recuadro-habitaciones {
+      display: none;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+    }
+
+    .limpieza-en-curso { background-color: orange !important; }
+    .limpieza-completa { background-color: green !important; }
+
+    input, select {
+      margin: 0.4rem 0;
+      padding: 0.5rem;
+      width: 100%;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      text-align: left;
+    }
+
+    td[contenteditable] {
+      background-color: #f0f0f0;
+    }
+
+    .acciones button {
+      margin-right: 5px;
+    }
+
+    #filtro {
+      width: 50%;
+      margin-top: 1rem;
+      padding: 0.5rem;
+    }
+  </style>
+</head>
+<body data-tema="claro">
+  <div class="sidebar">
+    <img src="https://cdn-icons-png.flaticon.com/512/235/235861.png" alt="Logo" />
+    <h2>Hotel GrandView</h2>
+    <button class="nav-btn" onclick="mostrarSeccion('gestion')"><i data-lucide="layout-dashboard"></i> Gestión</button>
+    <button class="nav-btn" onclick="mostrarSeccion('limpieza-empleado')"><i data-lucide="broom"></i> Limpieza</button>
+    <button class="nav-btn" onclick="mostrarSeccion('registro-huespedes')"><i data-lucide="users"></i> Huéspedes</button>
+    <button class="nav-btn" onclick="cambiarTema()"><i data-lucide="moon-star"></i> Tema</button>
+  </div>
+
+  <div class="contenedor">
+    <div id="gestion" class="seccion visible">
+      <h2>Registro de Huésped</h2>
+      <form id="registro-form">
+        <input type="text" id="nombre" placeholder="Nombre completo" required />
+        <input type="number" id="edad" placeholder="Edad" required />
+        <input type="text" id="direccion" placeholder="Dirección" required />
+        <input type="email" id="correo" placeholder="Correo electrónico" required />
+        <input type="date" id="entrada" required />
+        <input type="date" id="salida" required />
+        <input type="number" id="personas" placeholder="Cantidad de personas" required />
+        <label for="habitacion">Seleccione habitación:</label>
+        <select id="habitacion" required></select>
+        <button type="submit">Registrar</button>
+      </form>
+
+      <h2>Habitaciones disponibles</h2>
+      <button onclick="mostrarRecuadro('classic')">Classic Rooms</button>
+      <button onclick="mostrarRecuadro('open')">Open Rooms</button>
+      <button onclick="mostrarRecuadro('golden')">Golden Rooms</button>
+
+      <div id="classic" class="recuadro-habitaciones"></div>
+      <div id="open" class="recuadro-habitaciones"></div>
+      <div id="golden" class="recuadro-habitaciones"></div>
+
+      <h2>Control de Limpieza</h2>
+      <div id="panel-limpieza"></div>
+    </div>
+
+    <div id="limpieza-empleado" class="seccion">
+      <h2>Panel de Limpieza - Empleados</h2>
+      <div id="limpieza-empleados-panel"></div>
+    </div>
+
+    <div id="registro-huespedes" class="seccion">
+      <h2>Registros de Huéspedes</h2>
+      <input type="text" id="filtro" placeholder="Buscar por nombre, habitación, etc.">
+      <div style="margin-top: 1rem;">
+        <button onclick="exportarExcel()">Exportar Excel</button>
+        <button onclick="exportarPDF()">Exportar PDF</button>
+        <button onclick="mostrarSeccion('gestion')">Regresar</button>
+      </div>
+      <table id="tabla-registros">
+        <thead>
+          <tr>
+            <th>Nombre</th><th>Edad</th><th>Dirección</th><th>Correo</th><th>Entrada</th><th>Salida</th><th>Personas</th><th>Habitación</th><th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest"></script>
+  <script>
+    const habitaciones = [];
+    const ranges = [
+      { tipo: "Classic Room", inicio: 101, fin: 110 },
+      { tipo: "Open Room", inicio: 111, fin: 120 },
+      { tipo: "Golden Room", inicio: 121, fin: 130 }
+    ];
+
+    const habitacionSelect = document.getElementById("habitacion");
+    const panelLimpieza = document.getElementById("panel-limpieza");
+    const panelEmpleado = document.getElementById("limpieza-empleados-panel");
+
+    const crearHabitaciones = () => {
+      ranges.forEach(r => {
+        for (let i = r.inicio; i <= r.fin; i++) {
+          habitaciones.push({ numero: i, tipo: r.tipo });
+        }
+      });
+    };
+
+    const obtenerEstados = () => JSON.parse(localStorage.getItem("estadosLimpieza")) || {};
+    const guardarEstados = estados => localStorage.setItem("estadosLimpieza", JSON.stringify(estados));
+
+    const renderizarHabitaciones = () => {
+      document.getElementById("classic").innerHTML = "";
+      document.getElementById("open").innerHTML = "";
+      document.getElementById("golden").innerHTML = "";
+      panelLimpieza.innerHTML = "";
+      panelEmpleado.innerHTML = "";
+      habitacionSelect.innerHTML = "";
+
+      const estados = obtenerEstados();
+
+      habitaciones.forEach(h => {
+        const estado = estados[h.numero] || "";
+
+        const btnLimpieza = document.createElement("button");
+        btnLimpieza.className = `habitacion ${estado}`;
+        btnLimpieza.textContent = h.numero;
+        panelLimpieza.appendChild(btnLimpieza);
+
+        const btnEmpleado = document.createElement("button");
+        btnEmpleado.className = `habitacion ${estado}`;
+        btnEmpleado.textContent = h.numero;
+        btnEmpleado.addEventListener("click", () => {
+          const nuevoEstado = estado === "limpieza-en-curso" ? "limpieza-completa" : estado === "limpieza-completa" ? "" : "limpieza-en-curso";
+          estados[h.numero] = nuevoEstado;
+          guardarEstados(estados);
+          renderizarHabitaciones();
+        });
+        panelEmpleado.appendChild(btnEmpleado);
+
+        const opcion = document.createElement("option");
+        opcion.value = h.numero;
+        opcion.textContent = `${h.tipo} - ${h.numero}`;
+        habitacionSelect.appendChild(opcion);
+
+        const clone = btnLimpieza.cloneNode(true);
+        if (h.tipo.includes("Classic")) document.getElementById("classic").appendChild(clone);
+        if (h.tipo.includes("Open")) document.getElementById("open").appendChild(clone);
+        if (h.tipo.includes("Golden")) document.getElementById("golden").appendChild(clone);
+      });
+    };
+
+    const mostrarRecuadro = tipo => {
+      document.querySelectorAll(".recuadro-habitaciones").forEach(div => div.style.display = "none");
+      document.getElementById(tipo).style.display = "block";
+    };
+
+    document.getElementById("registro-form").addEventListener("submit", e => {
+      e.preventDefault();
+      const nuevo = {
+        nombre: nombre.value,
+        edad: edad.value,
+        direccion: direccion.value,
+        correo: correo.value,
+        entrada: entrada.value,
+        salida: salida.value,
+        personas: personas.value,
+        habitacion: habitacion.value
+      };
+      const registros = JSON.parse(localStorage.getItem("registros")) || [];
+      registros.push(nuevo);
+      localStorage.setItem("registros", JSON.stringify(registros));
+      registroForm.reset();
+      alert("Registro exitoso!");
+      cargarTabla();
+    });
+
+    const cargarTabla = () => {
+      const registros = JSON.parse(localStorage.getItem("registros")) || [];
+      const tbody = document.querySelector("#tabla-registros tbody");
+      tbody.innerHTML = "";
+      registros.forEach((r, i) => {
+        const fila = document.createElement("tr");
+        Object.keys(r).forEach(k => {
+          const td = document.createElement("td");
+          td.textContent = r[k];
+          td.contentEditable = true;
+          td.onblur = () => {
+            registros[i][k] = td.textContent;
+            localStorage.setItem("registros", JSON.stringify(registros));
+          };
+          fila.appendChild(td);
+        });
+        const acciones = document.createElement("td");
+        acciones.className = "acciones";
+        const btnEliminar = document.createElement("button");
+        btnEliminar.textContent = "Eliminar";
+        btnEliminar.onclick = () => {
+          registros.splice(i, 1);
+          localStorage.setItem("registros", JSON.stringify(registros));
+          cargarTabla();
+        };
+        acciones.appendChild(btnEliminar);
+        fila.appendChild(acciones);
+        tbody.appendChild(fila);
+      });
+    };
+
+    const exportarExcel = () => {
+  // Obtener los registros almacenados en localStorage
+  const registros = JSON.parse(localStorage.getItem("registros")) || [];
+  
+  // Si no hay registros, mostramos un mensaje y salimos
+  if (registros.length === 0) {
+    alert("No hay registros para exportar.");
+    return;
+  }
+
+  // Convertir los registros a una hoja de cálculo
+  const ws = XLSX.utils.json_to_sheet(registros);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Huéspedes");
+
+  // Descargar el archivo Excel
+  XLSX.writeFile(wb, "huespedes.xlsx");
+};
+
+    const exportarPDF = () => {
+      const registros = JSON.parse(localStorage.getItem("registros")) || [];
+      const doc = new jspdf.jsPDF();
+      doc.text("Registros de Huéspedes", 10, 10);
+      const rows = registros.map(r => Object.values(r));
+      doc.autoTable({
+        head: [["Nombre", "Edad", "Dirección", "Correo", "Entrada", "Salida", "Personas", "Habitación"]],
+        body: rows,
+        startY: 20
+      });
+      doc.save("huespedes.pdf");
+    };
+
+    document.getElementById("filtro").addEventListener("input", e => {
+      const valor = e.target.value.toLowerCase();
+      document.querySelectorAll("#tabla-registros tbody tr").forEach(tr => {
+        tr.style.display = [...tr.children].some(td => td.textContent.toLowerCase().includes(valor)) ? "" : "none";
+      });
+    });
+
+    const cambiarTema = () => {
+      const actual = document.body.getAttribute("data-tema");
+      const nuevo = actual === "oscuro" ? "claro" : "oscuro";
+      document.body.setAttribute("data-tema", nuevo);
+      localStorage.setItem("tema", nuevo);
+    };
+
+    const mostrarSeccion = id => {
+      document.querySelectorAll(".seccion").forEach(s => s.classList.remove("visible"));
+      document.getElementById(id).classList.add("visible");
+      if (id === "registro-huespedes") cargarTabla();
+    };
+
+    window.addEventListener("DOMContentLoaded", () => {
+      crearHabitaciones();
+      renderizarHabitaciones();
+      const temaGuardado = localStorage.getItem("tema");
+      if (temaGuardado) document.body.setAttribute("data-tema", temaGuardado);
+      lucide.createIcons();
+    });
+  </script>
+  <script>
+    // Todo el código que ya tienes aquí...
+
+    // Agregar estas líneas al final del bloque <script>:
+    const mostrarSeccion = id => {
+      document.querySelectorAll(".seccion").forEach(s => s.classList.remove("visible"));
+      document.getElementById(id).classList.add("visible");
+    };
+
+    const cargarTemaGuardado = () => {
+      const temaGuardado = localStorage.getItem("tema");
+      if (temaGuardado) {
+        document.body.setAttribute("data-tema", temaGuardado);
+      }
+    };
+
+    window.onload = () => {
+      crearHabitaciones();
+      renderizarHabitaciones();
+      cargarTabla();
+      cargarTemaGuardado();
+      lucide.createIcons();
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+</body>
+</html>
